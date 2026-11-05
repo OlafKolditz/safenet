@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<VTKFile type="UnstructuredGrid" version="0.1" byte_order="LittleEndian" header_type="UInt32" compressor="vtkZLibDataCompressor">
+  <UnstructuredGrid>
+    <Piece NumberOfPoints="7" NumberOfCells="6">
+      <PointData Scalars="bulk_node_ids">
+        <DataArray type="UInt64" Name="bulk_node_ids" format="binary" RangeMin="20" RangeMax="115">
+          AQAAAACAAAA4AAAAGwAAAA==eF4TYYAAUSgtBqULoHQhlC6C0sVQGgAvSAIG
+        </DataArray>
+      </PointData>
+      <CellData Scalars="bulk_element_ids">
+        <DataArray type="UInt64" Name="bulk_element_ids" format="binary" RangeMin="6808" RangeMax="6914">
+          AQAAAACAAAAwAAAAGwAAAA==eF5jkGYAgzNSEHoGlJ4Jpc9BaSaoOgBfAgNs
+        </DataArray>
+      </CellData>
+      <Points>
+        <DataArray type="Float64" Name="Points" NumberOfComponents="3" format="binary" RangeMin="0.09894003954974831" RangeMax="0.10000000000000003">
+          AQAAAACAAACoAAAAhAAAAA==eF6LTsx+MIlj5v6FHBLW+y/tsGeAgpB6zTt7kxbv5wqPV+hP2w4X/+0r62HkuGp/8dJlrPG/tsLF47t21D6YM3e/R+WtO5GRCHO23m3inS6xcL/Uyzl1X+4jzBEQvLDqyZql+11OKB7SfLsNLn53TVkl9/fl+zPMnyQfKUaIAwAzqTni
+          <InformationKey name="L2_NORM_RANGE" location="vtkDataArray" length="2">
+            <Value index="0">
+              0.09894003955
+            </Value>
+            <Value index="1">
+              0.1
+            </Value>
+          </InformationKey>
+        </DataArray>
+      </Points>
+      <Cells>
+        <DataArray type="Int64" Name="connectivity" format="binary" RangeMin="0" RangeMax="6">
+          AQAAAACAAABgAAAAHAAAAA==eF5jYIAAZjSaBY1mRKNZ0Wg2NJoJSgMAB0gAKQ==
+        </DataArray>
+        <DataArray type="Int64" Name="offsets" format="binary" RangeMin="2" RangeMax="12">
+          AQAAAACAAAAwAAAAGAAAAA==eF5jYoAAFijNBqU5oDQXlOaB0gADsAAr
+        </DataArray>
+        <DataArray type="UInt8" Name="types" format="binary" RangeMin="3" RangeMax="3">
+          AQAAAACAAAAGAAAACwAAAA==eF5jZgYBAABFABM=
+        </DataArray>
+      </Cells>
+    </Piece>
+  </UnstructuredGrid>
+</VTKFile>
