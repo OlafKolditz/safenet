@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+  STIMTEC - OGS TH model (process HT) on circular granite disk, water injection at the centre
+
+  Domain : disk R = 0.1 m, embedded inner circle r = 0.066 m, centre node (0,0,0)
+           2D plane, unit thickness 1 m (all rates are per metre thickness)
+  Phase 1 (0 ... 4000 s)   : thermal loading as in T_granite_ramp.prj
+           outer boundary T: linear ramp 293 K -> 363 K for 0...325 s, then 363 K
+           no injection, pressure stays at p0
+  Phase 2 (4000 ... 4050 s): water injection at the centre node
+           volumetric rate Q_inj = 1 l/min = 1.6667e-5 m3/s (per m thickness)
+           injection temperature T_inj = 293 K (Dirichlet on centre node during injection)
+  Phase 3 (4050 ... 5000 s): shut-in, recovery
+  Hydraulic BC : p = p0 = 1 MPa on outer boundary (drained)
+  Initial      : T0 = 293 K, p0 = 1 MPa
+
+  Hydraulic parameters (from STIMTEC calibration, kalibrierung_k_S_2026-09-26, variant 1):
+           permeability k = 1.409e-14 m2, storage S = 1.419e-11 1/Pa
+  Porosity phi = 0.01. Solid thermal properties are chosen such that the bulk values equal the
+  verified T model (lambda = 2.8 W/(m K), rho*c = 2700*790 J/(m3 K)):
+           lambda_s = (2.8 - phi*0.6)/(1-phi) = 2.8222 W/(m K)
+           c_s = (2700*790 - phi*1000*4180)/((1-phi)*2700) = 782.34 J/(kg K)
+  Water: constant density 1000 kg/m3, viscosity 1e-3 Pa s, c = 4180 J/(kg K), lambda = 0.6 W/(m K)
+  No gravity (horizontal plane).
+-->
+<OpenGeoSysProject>
+    <meshes>
+        <mesh>domain.vtu</mesh>
+        <mesh>outer_boundary.vtu</mesh>
+        <mesh>inner_circle.vtu</mesh>
+        <mesh>inner_disk.vtu</mesh>
+        <mesh>center.vtu</mesh>
+    </meshes>
+    <processes>
+        <process>
+            <name>HT</name>
+            <type>HT</type>
+            <integration_order>2</integration_order>
+            <process_variables>
+                <temperature>temperature</temperature>
+                <pressure>pressure</pressure>
+            </process_variables>
+            <specific_body_force>0 0</specific_body_force>
+            <secondary_variables>
+                <secondary_variable internal_name="darcy_velocity" output_name="darcy_velocity"/>
+            </secondary_variables>
+        </process>
+    </processes>
+    <media>
+        <medium id="0">
+            <phases>
+                <phase>
+                    <type>AqueousLiquid</type>
+                    <properties>
+                        <property>
+                            <name>density</name>
+                            <type>Constant</type>
+                            <value>1000</value>
+                        </property>
+                        <property>
+                            <name>viscosity</name>
+                            <type>Constant</type>
+                            <value>1.0e-3</value>
+                        </property>
+                        <property>
+                            <name>specific_heat_capacity</name>
+                            <type>Constant</type>
+                            <value>4180</value>
+                        </property>
+                        <property>
+                            <name>thermal_conductivity</name>
+                            <type>Constant</type>
+                            <value>0.6</value>
+                        </property>
+                    </properties>
+                </phase>
+                <phase>
+                    <type>Solid</type>
+                    <properties>
+                        <property>
+                            <name>density</name>
+                            <type>Constant</type>
+                            <value>2700</value>
+                        </property>
+                        <property>
+                            <name>specific_heat_capacity</name>
+                            <type>Constant</type>
+                            <value>782.3419</value>
+                        </property>
+                        <property>
+                            <name>thermal_conductivity</name>
+                            <type>Constant</type>
+                            <value>2.8222222</value>
+                        </property>
+                        <property>
+                            <name>storage</name>
+                            <type>Constant</type>
+                            <value>1.419e-11</value>
+                        </property>
+                    </properties>
+                </phase>
+            </phases>
+            <properties>
+                <property>
+                    <name>permeability</name>
+                    <type>Constant</type>
+                    <value>1.409e-14</value>
+                </property>
+                <property>
+                    <name>porosity</name>
+                    <type>Constant</type>
+                    <value>0.01</value>
+                </property>
+                <property>
+                    <name>thermal_conductivity</name>
+                    <type>EffectiveThermalConductivityPorosityMixing</type>
+                </property>
+                <property>
+                    <name>thermal_longitudinal_dispersivity</name>
+                    <type>Constant</type>
+                    <value>0</value>
+                </property>
+                <property>
+                    <name>thermal_transversal_dispersivity</name>
+                    <type>Constant</type>
+                    <value>0</value>
+                </property>
+            </properties>
+        </medium>
+    </media>
+    <time_loop>
+        <processes>
+            <process ref="HT">
+                <nonlinear_solver>basic_picard</nonlinear_solver>
+                <convergence_criterion>
+                    <type>PerComponentDeltaX</type>
+                    <norm_type>NORM2</norm_type>
+                    <abstols>1e-6 1e-2</abstols>
+                </convergence_criterion>
+                <time_discretization>
+                    <type>BackwardEuler</type>
+                </time_discretization>
+                <time_stepping>
+                    <type>FixedTimeStepping</type>
+                    <t_initial>0.0</t_initial>
+                    <t_end>5000</t_end>
+                    <timesteps>
+                        <!-- heating phase 0 ... 4000 s -->
+                        <pair>
+                            <repeat>800</repeat>
+                            <delta_t>5</delta_t>
+                        </pair>
+                        <!-- injection 4000 ... 4050 s -->
+                        <pair>
+                            <repeat>100</repeat>
+                            <delta_t>0.5</delta_t>
+                        </pair>
+                        <!-- early shut-in 4050 ... 4150 s -->
+                        <pair>
+                            <repeat>100</repeat>
+                            <delta_t>1</delta_t>
+                        </pair>
+                        <!-- recovery 4150 ... 5000 s -->
+                        <pair>
+                            <repeat>170</repeat>
+                            <delta_t>5</delta_t>
+                        </pair>
+                    </timesteps>
+                </time_stepping>
+            </process>
+        </processes>
+        <output>
+            <type>VTK</type>
+            <prefix>TH_granite_{:meshname}</prefix>
+            <meshes>
+                <mesh>domain</mesh>
+                <mesh>center</mesh>
+                <mesh>inner_disk</mesh>
+            </meshes>
+            <timesteps>
+                <pair>
+                    <repeat>800</repeat>
+                    <each_steps>20</each_steps>
+                </pair>
+                <pair>
+                    <repeat>100</repeat>
+                    <each_steps>2</each_steps>
+                </pair>
+                <pair>
+                    <repeat>100</repeat>
+                    <each_steps>5</each_steps>
+                </pair>
+                <pair>
+                    <repeat>170</repeat>
+                    <each_steps>2</each_steps>
+                </pair>
+            </timesteps>
+            <fixed_output_times>325 2000 4000 4001 4005 4010 4025 4050 4060 4100 4200 4500</fixed_output_times>
+            <variables>
+                <variable>temperature</variable>
+                <variable>pressure</variable>
+                <variable>darcy_velocity</variable>
+            </variables>
+            <suffix>_ts_{:timestep}_t_{:time}</suffix>
+        </output>
+    </time_loop>
+    <parameters>
+        <parameter>
+            <name>T0</name>
+            <type>Constant</type>
+            <value>293</value>
+        </parameter>
+        <parameter>
+            <name>p0</name>
+            <type>Constant</type>
+            <value>1e6</value>
+        </parameter>
+        <parameter>
+            <name>one</name>
+            <type>Constant</type>
+            <value>1</value>
+        </parameter>
+        <!-- outer boundary temperature: ramp 293 -> 363 K (0...325 s), then 363 K -->
+        <parameter>
+            <name>T_outer</name>
+            <type>CurveScaled</type>
+            <curve>T_outer_curve</curve>
+            <parameter>one</parameter>
+        </parameter>
+        <!-- temperature of the injected water -->
+        <parameter>
+            <name>T_inj</name>
+            <type>Constant</type>
+            <value>293</value>
+        </parameter>
+        <!-- volumetric injection rate [m3/s per m thickness]: 1 l/min for 4000 < t <= 4050 s -->
+        <parameter>
+            <name>Q_inj</name>
+            <type>Function</type>
+            <expression>(t &gt; 4000 and t &lt;= 4050) ? 1.6666667e-5 : 0</expression>
+        </parameter>
+    </parameters>
+    <curves>
+        <curve>
+            <name>T_outer_curve</name>
+            <coords>0 325 5000</coords>
+            <values>293 363 363</values>
+        </curve>
+    </curves>
+    <process_variables>
+        <process_variable>
+            <name>temperature</name>
+            <components>1</components>
+            <order>1</order>
+            <initial_condition>T0</initial_condition>
+            <boundary_conditions>
+                <boundary_condition>
+                    <mesh>outer_boundary</mesh>
+                    <type>Dirichlet</type>
+                    <parameter>T_outer</parameter>
+                </boundary_condition>
+                <!-- injected water temperature at the injection node, only during injection -->
+                <boundary_condition>
+                    <mesh>center</mesh>
+                    <type>DirichletWithinTimeInterval</type>
+                    <parameter>T_inj</parameter>
+                    <time_interval>
+                        <start>4000.25</start>
+                        <end>4050</end>
+                    </time_interval>
+                </boundary_condition>
+            </boundary_conditions>
+        </process_variable>
+        <process_variable>
+            <name>pressure</name>
+            <components>1</components>
+            <order>1</order>
+            <initial_condition>p0</initial_condition>
+            <boundary_conditions>
+                <boundary_condition>
+                    <mesh>outer_boundary</mesh>
+                    <type>Dirichlet</type>
+                    <parameter>p0</parameter>
+                </boundary_condition>
+            </boundary_conditions>
+            <source_terms>
+                <source_term>
+                    <mesh>center</mesh>
+                    <type>Nodal</type>
+                    <parameter>Q_inj</parameter>
+                </source_term>
+            </source_terms>
+        </process_variable>
+    </process_variables>
+    <nonlinear_solvers>
+        <nonlinear_solver>
+            <name>basic_picard</name>
+            <type>Picard</type>
+            <max_iter>20</max_iter>
+            <linear_solver>general_linear_solver</linear_solver>
+        </nonlinear_solver>
+    </nonlinear_solvers>
+    <linear_solvers>
+        <linear_solver>
+            <name>general_linear_solver</name>
+            <lis>-i bicgstab -p ilu -tol 1e-14 -maxiter 10000</lis>
+            <eigen>
+                <solver_type>SparseLU</solver_type>
+                <scaling>true</scaling>
+            </eigen>
+            <petsc>
+                <prefix>ht</prefix>
+                <parameters>-ht_ksp_type bcgs -ht_pc_type bjacobi -ht_ksp_rtol 1e-14 -ht_ksp_max_it 10000</parameters>
+            </petsc>
+        </linear_solver>
+    </linear_solvers>
+</OpenGeoSysProject>

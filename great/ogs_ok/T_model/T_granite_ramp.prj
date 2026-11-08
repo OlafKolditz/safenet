@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+  STIMTEC - OGS T model (HEAT_CONDUCTION) on circular granite disk - RAMP case
+  Domain : disk R = 0.1 m, embedded inner circle r = 0.066 m, centre node (0,0,0)
+  IC     : T0 = 293 K everywhere
+  BC     : Dirichlet on outer boundary r = 0.1 m, time-dependent:
+           linear ramp 293 K -> 363 K for 0 <= t <= 325 s, then 363 K until 4000 s
+  Granite: rho = 2700 kg/m3, lambda = 2.8 W/(m K), cp = 790 J/(kg K)
+           -> diffusivity kappa = 1.31e-6 m2/s, R^2/kappa ~ 7.6e3 s (~2.1 h)
+  Time   : 0 ... 4000 s, dt = 5 s
+-->
+<OpenGeoSysProject>
+    <meshes>
+        <mesh>domain.vtu</mesh>
+        <mesh>outer_boundary.vtu</mesh>
+        <mesh>inner_circle.vtu</mesh>
+        <mesh>inner_disk.vtu</mesh>
+        <mesh>center.vtu</mesh>
+    </meshes>
+    <processes>
+        <process>
+            <name>HeatConduction</name>
+            <type>HEAT_CONDUCTION</type>
+            <integration_order>2</integration_order>
+            <process_variables>
+                <process_variable>temperature</process_variable>
+            </process_variables>
+            <secondary_variables>
+                <secondary_variable internal_name="heat_flux" output_name="heat_flux"/>
+            </secondary_variables>
+        </process>
+    </processes>
+    <media>
+        <medium id="0">
+            <phases/>
+            <properties>
+                <property>
+                    <name>thermal_conductivity</name>
+                    <type>Constant</type>
+                    <value>2.8</value>
+                </property>
+                <property>
+                    <name>specific_heat_capacity</name>
+                    <type>Constant</type>
+                    <value>790</value>
+                </property>
+                <property>
+                    <name>density</name>
+                    <type>Constant</type>
+                    <value>2700</value>
+                </property>
+            </properties>
+        </medium>
+    </media>
+    <time_loop>
+        <processes>
+            <process ref="HeatConduction">
+                <nonlinear_solver>basic_picard</nonlinear_solver>
+                <convergence_criterion>
+                    <type>DeltaX</type>
+                    <norm_type>NORM2</norm_type>
+                    <abstol>1.e-6</abstol>
+                </convergence_criterion>
+                <time_discretization>
+                    <type>BackwardEuler</type>
+                </time_discretization>
+                <time_stepping>
+                    <type>FixedTimeStepping</type>
+                    <t_initial>0.0</t_initial>
+                    <t_end>4000</t_end>
+                    <timesteps>
+                        <pair>
+                            <repeat>800</repeat>
+                            <delta_t>5</delta_t>
+                        </pair>
+                    </timesteps>
+                </time_stepping>
+            </process>
+        </processes>
+        <output>
+            <type>VTK</type>
+            <prefix>T_granite_{:meshname}</prefix>
+            <meshes>
+                <mesh>domain</mesh>
+                <mesh>center</mesh>
+                <mesh>inner_disk</mesh>
+            </meshes>
+            <timesteps>
+                <pair>
+                    <repeat>1</repeat>
+                    <each_steps>10</each_steps>
+                </pair>
+            </timesteps>
+            <fixed_output_times>100 200 325 600 1200 2000 4000</fixed_output_times>
+            <variables>
+                <variable>temperature</variable>
+                <variable>heat_flux</variable>
+            </variables>
+            <suffix>_ts_{:timestep}_t_{:time}</suffix>
+        </output>
+    </time_loop>
+    <parameters>
+        <parameter>
+            <name>T0</name>
+            <type>Constant</type>
+            <value>293</value>
+        </parameter>
+        <parameter>
+            <name>one</name>
+            <type>Constant</type>
+            <value>1</value>
+        </parameter>
+        <parameter>
+            <name>T_outer</name>
+            <type>CurveScaled</type>
+            <curve>T_outer_curve</curve>
+            <parameter>one</parameter>
+        </parameter>
+    </parameters>
+    <curves>
+        <!-- outer boundary temperature [K] vs time [s] -->
+        <curve>
+            <name>T_outer_curve</name>
+            <coords>0 325 4000</coords>
+            <values>293 363 363</values>
+        </curve>
+    </curves>
+    <process_variables>
+        <process_variable>
+            <name>temperature</name>
+            <components>1</components>
+            <order>1</order>
+            <initial_condition>T0</initial_condition>
+            <boundary_conditions>
+                <boundary_condition>
+                    <mesh>outer_boundary</mesh>
+                    <type>Dirichlet</type>
+                    <parameter>T_outer</parameter>
+                </boundary_condition>
+            </boundary_conditions>
+        </process_variable>
+    </process_variables>
+    <nonlinear_solvers>
+        <nonlinear_solver>
+            <name>basic_picard</name>
+            <type>Picard</type>
+            <max_iter>10</max_iter>
+            <linear_solver>general_linear_solver</linear_solver>
+        </nonlinear_solver>
+    </nonlinear_solvers>
+    <linear_solvers>
+        <linear_solver>
+            <name>general_linear_solver</name>
+            <lis>-i cg -p jacobi -tol 1e-12 -maxiter 10000</lis>
+            <eigen>
+                <solver_type>CG</solver_type>
+                <precon_type>DIAGONAL</precon_type>
+                <max_iteration_step>10000</max_iteration_step>
+                <error_tolerance>1e-12</error_tolerance>
+            </eigen>
+            <petsc>
+                <prefix>T</prefix>
+                <parameters>-T_ksp_type cg -T_pc_type bjacobi -T_ksp_rtol 1e-12 -T_ksp_max_it 10000</parameters>
+            </petsc>
+        </linear_solver>
+    </linear_solvers>
+</OpenGeoSysProject>
