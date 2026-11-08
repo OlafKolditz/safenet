@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<VTKFile type="UnstructuredGrid" version="0.1" byte_order="LittleEndian" compressor="vtkZLibDataCompressor">
+<!--This file was created by meshio v5.3.5-->
+<UnstructuredGrid>
+<Piece NumberOfPoints="50" NumberOfCells="24">
+<Points>
+<DataArray type="Float64" Name="Points" NumberOfComponents="3" format="binary">
+AQAAAACAAACwBAAAqQIAAA==eJxd011Ik1EYwPFXmoJEw1RCE4o+nB+ECV3EJu5os6V2oVYmpCzYSKfJsimlS4Slbsbc2FLR0lBSpA8YleLKbT7pclF+YEo1TfqOwPKimnVRapyjnZfTe/nn5Xmfc/bbnpuGr88FVpSZLQpZSH+AuPUnbq3D/33ves9Y6/CvR7NzaB9c8jfP5JtQUkG1dF7Bz4lPW4gRuOtRcJTc0VTBd4nx9LROoUcHws8ELev5/jrrYpQnR4c+iOC8sJHvKSfLkkxODUrS9tr+NPOd47jsHbufuduv4Ifv/dqtcpNTA4el3cz7IxHWbZ4cHVQGuJj5j1vUMzqFHlaVpcw+I/7OWIG7HorsMmb/SVFhy0y+CX6X65jzbvTtKk/tM6OSyqGxnGN8N2SCOdDcgLrknWF5JXz3xojCgi21SNU4KLtxge9vX/g7vcYaFPlO0Kow8n3Aefap1FeBqlJu2aNsfE+fvQuLLgUqKvuZrW3je0jGp7lFlwKGT/mZbljpn5T6KsDj7WXm2HuM173GGhBPBDDfzZ0UhgdbauHQiIPZ03JUZQk0N8DEeAdzrqaEOnwPYOt3MfewWfgdO4FhNXFC/dx79BI7AckJ4oT2rIRC7ASmdxIntAe912An8FlCnND+8JIFO4H4YuKEdo7jpmbdU8lX15zQnjawfBC7+iLvZt6PnS/FTtBotIuZX/MrDztBqdZSZp/7+9qxE9QzJGP2R4lK7ASF1uuY87aNbif3U2ciTmiP8wxjJxCaTJzQnhu5BTuB227ihHb1k01d+PeSeYgT2gs0VdgJJEqIE9rvHF/FTqC1hDihPWJc8Ar7Uar8TF8Rd2An6MdcLzOnen8xdoI6vgUw372s34CdoKWPDmZPh/gIdoLeCK8x5zo3lkz+L30rbuYe/gLfmJWO
+</DataArray>
+</Points>
+<Cells>
+<DataArray type="Int64" Name="connectivity" format="binary">
+AQAAAACAAABAAgAAbgAAAA==eJxdxzcWggAAwFCa2MWKXbEg2PX+l3MwU7L8lyD4l2Cmb+BQn+JI38SxvoUTfRun+g7O9F3M9T2c6/u40A9wqQ9xhRGu8aLfYKXfYq3f4VW/x5u+wLv+gA/9EZ/6E770Z3zrS/zoY/ziD3ErBo0=
+</DataArray>
+<DataArray type="Int64" Name="offsets" format="binary">
+AQAAAACAAADAAAAAQAAAAA==eJwtxdEGgDAAAMAYMSIiIiIiYkTEGBHR/39RD929XKh+taMbt+7ce/DoybMXr96cvPvw6eziy7cfv/4A9IADhQ==
+</DataArray>
+<DataArray type="Int64" Name="types" format="binary">
+AQAAAACAAADAAAAADwAAAA==eJwTZYAA0SFKAwDFoAH5
+</DataArray>
+</Cells>
+<PointData>
+<DataArray type="UInt64" Name="bulk_node_ids" format="binary">
+AQAAAACAAACQAQAAXQAAAA==eJw1zbcBggAAAEEscQPZv8dAztGIO1F4fnPlh8GvI0+MGPPMC6+8MWHKjDkLlqxYs2HLjj0Hjpw4c+H6/x58WbJizYYtO/YcOHLizIUr73zwyRff/HDjlzsFsCKC
+</DataArray>
+</PointData>
+<CellData>
+<DataArray type="UInt64" Name="bulk_element_ids" format="binary">
+AQAAAACAAADAAAAATwAAAA==eJx7JMQABuzCELoISs+AirOKQGgdKF8fSnNAxadA+flQfRxQ+jlU/AmUZoGKF0PpWTB7oeacgvJPQmlOqPh0KD8Hqo8TSj+FigMAShQLlw==
+</DataArray>
+</CellData>
+</Piece>
+</UnstructuredGrid>
+</VTKFile>
