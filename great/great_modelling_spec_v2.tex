@@ -1,0 +1,929 @@
+\documentclass[11pt,a4paper]{article}
+
+% ---------------------------------------------------------------
+% Packages (same set-up as the THM model report)
+% ---------------------------------------------------------------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs,tabularx,array}
+\usepackage{siunitx}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+
+\sisetup{range-phrase=--, range-units=single}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\renewcommand{\arraystretch}{1.2}
+\graphicspath{{../figures/}}
+\newcommand{\open}{$\square$}
+\newcommand{\incons}{\textcolor{red!70!black}{$\ddagger$}}
+\newcommand{\added}{\textcolor{blue!60!black}{$^{+}$}}
+
+% ---------------------------------------------------------------
+\title{GREAT Cell Modelling Specification\\[0.5ex]
+\large DECOVALEX 2027 -- SAFENET-2}
+\author{Peng-Zhi Pan$^{1,2}$, Wenbo Hou$^{1,2}$, Ning Yang$^{1,2}$,
+Mostafa Mollaali$^{3,4}$, Olaf Kolditz$^{4,5}$\\[2ex]
+\small $^{1}$State Key Laboratory of Geomechanics and Geotechnical Engineering Safety,\\
+\small Institute of Rock and Soil Mechanics, Chinese Academy of Sciences (CAS), Wuhan, China\\
+\small $^{2}$University of Chinese Academy of Sciences, Beijing, China\\
+\small $^{3}$Technische Universit\"at Bergakademie Freiberg (TUBAF), Germany\\
+\small $^{4}$Helmholtz Centre for Environmental Research -- UFZ, Leipzig, Germany\\
+\small $^{5}$Technische Universit\"at Dresden, Germany}
+\date{Version 2 -- 22 November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This specification fixes geometry, material parameters, loads, boundary
+conditions and outputs for modelling the GREAT cell experiments, so that all
+DECOVALEX SAFENET-2 teams simulate the same problem and their results can be
+compared directly. It is code-independent. Version~2 defines two thermal
+scenarios for two application areas: Scenario~I, heating of the sample from
+its boundary followed by a short cold-water injection (the scenario of
+version~1), and Scenario~II, a geothermal application with cold-water
+injection into a hot (\SI{300}{\celsius}) rock. OpenGeoSys (OGS) reference
+solutions exist for the cases M1 and THM2 of Scenario~I.
+\end{abstract}
+
+\tableofcontents
+
+% ---------------------------------------------------------------
+\section{Purpose and scope}
+% ---------------------------------------------------------------
+\subsection{General rules}
+\begin{itemize}
+  \item \textbf{Fixed:} everything in Sections~\ref{sec:geometry} to
+        \ref{sec:outputs}. Deviations must be reported.
+  \item \textbf{Free:} numerical method, element type, mesh, time stepping and
+        solver, within the accuracy targets of Section~\ref{sec:verification}.
+  \item \textbf{Units:} SI throughout (m, s, Pa, K, kg). Strains as fractions;
+        plots may use $10^{-2}$\,\%. Exception: the Scenario~II outputs use
+        \si{\celsius}, MPa (gauge), ml/min and ml (Section~\ref{sec:outputs-II}).
+  \item \textbf{Model dimension:} 2D plane strain, horizontal mid-section of
+        the sample, unit thickness \SI{1}{m}. All rates are per metre thickness;
+        in Scenario~II the 3D injection rate is divided by the specimen thickness
+        $B=\SI{0.2}{m}$ (Section~\ref{sec:schedule-II}).
+\end{itemize}
+
+\subsection{Two thermal scenarios}
+\label{sec:scenarios}
+The thermal benchmarks are run in two scenarios that represent two application
+areas (Table~\ref{tab:scenarios}). Both use the same disc geometry, angle convention, mechanical load
+cases and rock mechanical parameters; they differ in the rubber sheath, in how
+heat enters the sample, in the temperature range, the injection programme and
+the hydraulic parameters.
+
+\begin{itemize}
+  \item \textbf{Scenario~I -- heating of the sample (repository-type
+        application).} The sample starts at laboratory temperature and is heated
+        from its outer boundary, as by the heating bands of the GREAT cell, while
+        it is held under the poly-axial load. A short cold-water injection at the
+        centre follows. Heat enters by conduction from the boundary; the
+        scenario tests thermal expansion under poly-axial stress, as in the near
+        field of a heat-generating waste repository. This is the scenario of
+        version~1 of this specification; it is kept unchanged.
+  \item \textbf{Scenario~II -- cold-water injection into a hot rock (geothermal
+        application).} Rock and pore water start uniformly at
+        \SI{300}{\celsius}. After the poly-axial load is applied, water at
+        \SI{15}{\celsius} is injected at a constant low rate for \SI{3600}{s},
+        while the outer boundary is thermally insulated. The injected water is
+        the only thermal input, so the scenario tests cooling-induced
+        contraction, advective heat transport and pressure propagation, as
+        around an injection well in an enhanced geothermal system. It follows
+        the SAFENET-2 THM benchmark proposal of~\cite{Pan2026}.
+\end{itemize}
+
+\begin{table}[htbp]
+\centering
+\caption{Overview of the two thermal scenarios.}
+\label{tab:scenarios}
+\small
+\begin{tabularx}{\textwidth}{@{}lLL@{}}
+\toprule
+Item & Scenario I: heating (version 1) & Scenario II: geothermal \\
+\midrule
+Application        & Repository near field (heat-generating waste) & Enhanced geothermal system, injection well \\
+Rubber sheath      & Yes: \SI{3}{mm}, $0.097 < r \le \SI{0.100}{m}$ & No: rock up to $R=\SI{0.100}{m}$ \\
+Initial temperature & \SI{20}{\celsius} (\SI{293}{K}) & \SI{300}{\celsius} uniform, $T_\mathrm{ref}=T_0$ \\
+Outer thermal boundary & Heated: \SI{20}{\celsius} $\rightarrow$ \SI{90}{\celsius} in \SI{325}{s}, then held & Adiabatic \\
+Injected water     & \SI{20}{\celsius}, \SI{1}{l/min} per m, 4000--4050\,s & \SI{15}{\celsius}, $Q_0=\SI{0.1}{ml/min}$, ramp 2000--2120\,s, constant to 5600\,s \\
+Mechanical load    & Load~A applied at $t=0$ & Load ramped 0--1800\,s, then held \\
+Pore pressure      & $p_0=\SI{1}{MPa}$; outer boundary $p=p_0$ & Gauge pressure $p_0=0$; outer boundary $p=0$ (absolute reference \SI{8.6}{MPa}) \\
+Matrix permeability & \SI{1.409e-14}{m^2} & \SI{2.58e-19}{m^2} (Greywacke), \SI{1e-19}{m^2} (Gneiss) \\
+Water properties   & Constant (compressibility \SI{4.4e-10}{Pa^{-1}}) & Temperature-dependent (IAPWS-IF97) \\
+Duration           & \SI{5000}{s} & \SI{5600}{s} \\
+Isothermal control & -- & HM run at \SI{15}{\celsius}, same mesh, time steps and flow schedule \\
+Case ID (example)  & THM2, Load A, Greywacke (version 1 naming) & THM2-GW-A-T300~\cite{Pan2026} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Sections~\ref{sec:geometry} to \ref{sec:outputs} cover both scenarios; where
+they differ, subsections or table rows are marked Scenario~I or~II. The
+verification values of Section~\ref{sec:verification} are so far available for
+Scenario~I only.
+
+% ---------------------------------------------------------------
+\section{Benchmark matrix}
+% ---------------------------------------------------------------
+The benchmarks add one process at a time: mechanics (M), then fluid flow (HM),
+then heat (THM), each for an intact sample, a single fracture and a fracture
+network (Fig.~\ref{fig:concept}, Table~\ref{tab:matrix}). For Scenario~I this
+version specifies \textbf{M1} and \textbf{THM2} in full; the fractured cases
+follow the same conventions and are added later.
+
+Scenario~II adopts the THM case matrix of~\cite{Pan2026} (Table~5 there),
+restricted to the initial temperature $T_0=\SI{300}{\celsius}$. Each THM run is
+paired with an isothermal HM control at \SI{15}{\celsius} with the same mesh,
+time steps and flow schedule; the controls are not included in the run counts.
+The runs are carried out in two phases: Phase~1 contains the mandatory runs for
+Greywacke under Load~A; the mandatory suite adds Loads B and C for the
+fractured samples. THM4, THM5, Loads E and F, and Gneiss are optional. Case IDs
+follow the format \texttt{THM\{number\}-\{rock\}-\{load\}-T\{$T_0$\}}, e.g.\
+\texttt{THM3b-GW-A-T300}, with GW for Greywacke and GN for Gneiss; the HM
+control of this run is \texttt{HM3b-GW-A-T15}.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.6\textwidth]{great-benchmarking-thm.png}
+\caption{GREAT cell benchmark concept: M (grey), HM (blue, fluid injection) and
+THM (red boundary, heating) for intact, fractured and networked samples.}
+\label{fig:concept}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\caption{Benchmark cases. Run counts for Scenario~II: Phase~1 / mandatory suite
+/ full suite, for $T_0=\SI{300}{\celsius}$, without the HM controls.}
+\label{tab:matrix}
+\small
+\begin{tabularx}{\textwidth}{@{}lLLcL@{}}
+\toprule
+Case & Sample / configuration & Processes, loads & Runs & Status \\
+\midrule
+\multicolumn{5}{@{}l}{\textit{Scenario I -- heating (version 1)}} \\
+M1             & Intact                    & Poly-axial load, rotated (Loads A, E, B, F, C) & -- & Specified; OGS reference \\
+M3a / M3b      & Full / half fracture      & Mechanics                                      & -- & Geometry given; load as M1 \\
+HM2            & Intact, central borehole  & Load + injection                               & -- & Covered by THM2 without heating \\
+HM3a / HM3b    & Full / half fracture      & Load + injection into fracture                 & -- & To be specified \\
+HM4            & Fracture network          & Load + injection                               & -- & To be specified \\
+THM2           & Intact                    & Load A + heating + cold-water injection        & -- & Specified; OGS reference \\
+THM3a/b, THM4  & Fractured                 & As HM3/HM4 + heating                           & -- & To be specified \\
+\midrule
+\multicolumn{5}{@{}l}{\textit{Scenario II -- geothermal, $T_0=\SI{300}{\celsius}$, Greywacke and Gneiss~\cite{Pan2026}}} \\
+THM2           & Intact disk; centre-point injection                     & Load + cold-water injection; A               & 1 / 1 / 2  & Mandatory (GW, A) \\
+THM3a          & Through-going fracture, length \SI{0.188}{m}            & As THM2, injection into fracture; A/E/B/F/C  & 1 / 3 / 10 & Mandatory (GW; A, B, C) \\
+THM3b          & Embedded (half) fracture, length \SI{0.04}{m}           & As THM3a; A/E/B/F/C                          & 1 / 3 / 10 & Mandatory (GW; A, B, C) \\
+THM4           & Propagating fracture; initial crack \SI{0.02}{m} through the centre, inclined at \ang{45} (HM3c) & As THM2, injection into the crack centre; A/B/C & 0 / 0 / 6  & Optional \\
+THM5           & Centre borehole, radius \SI{0.0025}{m}, no notch (HM3d) & As THM2, fracture nucleation at the borehole; A/B/C & 0 / 0 / 6 & Optional \\
+\midrule
+Total (Sc.~II) &                                                         &                                              & 3 / 7 / 34 & Each with an HM control at \SI{15}{\celsius} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+In Scenario~II the names follow~\cite{Pan2026}: THM4 denotes a propagating
+fracture and THM5 fracture initiation from a centre borehole, whereas in
+Scenario~I and Fig.~\ref{fig:concept} HM4/THM4 denote a fracture network.
+The Scenario~II cases correspond to the HM benchmarks of~\cite{Mollaali2026}
+as follows: THM2 -- HM1, THM3a -- HM2a, THM3b -- HM2b, THM4 -- HM3c,
+THM5 -- HM3d (``HM5'' in~\cite{Pan2026}).
+\cite{Pan2026} also defines the initial temperature \SI{90}{\celsius}, which
+doubles its run counts (6 / 14 / 68); it is not part of this specification.
+
+Teams are encouraged to run the stepwise sequence T $\rightarrow$ TH
+$\rightarrow$ THM used for the reference model, since each step has its own
+check.
+
+% ---------------------------------------------------------------
+\section{Geometry and conventions}
+\label{sec:geometry}
+% ---------------------------------------------------------------
+The domain is a disc of radius $R=\SI{0.100}{m}$ centred at $(0,0)$
+(Fig.~\ref{fig:geometry}, Table~\ref{tab:geometry}). In Scenario~I the rock
+fills $r\le\SI{0.097}{m}$ and a \SI{3}{mm} rubber sheath lies outside it, as
+in the GREAT cell. In Scenario~II there is no sheath: the rock fills the whole
+disc and the PEE/DSS loads act directly on the rock surface. All other
+geometric items are the same in both scenarios. The sample radius
+$R=\SI{0.100}{m}$ and the through-going fracture length of \SI{0.188}{m} apply
+to both scenarios; the values \SI{193.75}{mm} (sample diameter in Fig.~3)
+and \SI{0.194}{m} (THM3a fracture length) of~\cite{Pan2026} are not used. Angles $\theta$ are measured
+counter-clockwise from the $+x$ axis (Section~\ref{sec:angles}).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{fig_geometry.pdf}
+\caption{Geometry and PEE numbering (a), detail of the sheath at PEE~1a (b), shown for Scenario~I. In Scenario~II the sheath is replaced by rock.}
+\label{fig:geometry}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\caption{Geometry and conventions.}
+\label{tab:geometry}
+\begin{tabularx}{\textwidth}{@{}lL@{}}
+\toprule
+Item & Specification \\
+\midrule
+Rock               & Scenario~I: $r \le \SI{0.097}{m}$ (material 0). Scenario~II: $r \le \SI{0.100}{m}$ (material 0) \\
+Sheath             & Scenario~I only: $\SI{0.097}{m} < r \le \SI{0.100}{m}$ (material 1) \\
+Centre point       & $(0,0)$; injection point (THM2), borehole not resolved \\
+Probe circle       & $r=\SI{0.065}{m}$; volumetric strain output \\
+PEE arcs           & 16 arcs of \ang{18} on $r=\SI{0.100}{m}$. PEE $i$ centred at $\theta=-(i-1)\cdot\ang{22.5}$ ($i=1\ldots8$, clockwise from $+x$); PEE $i$a opposite, at $+\ang{180}$ \\
+DSS arcs           & 16 arcs of \ang{4.5} between the PEEs. DSS $i$ lies between PEE $i$ and PEE $i+1$; DSS~8 between PEE~8 and PEE~1a \\
+Rigid-body control & $P_\mathrm{bottom}=(0,\,-0.09894)$\,m: $u_x=u_y=0$. $P_\mathrm{left}=(-0.09894,\,0)$\,m: $u_y=0$ \\
+Full fracture (M3a/HM3a/THM3a) & Segment $(-0.094,\,0.094)\,\mathrm{m}\times\{0\}$ \\
+Half fracture (M3b/HM3b/THM3b) & Segment $(0,\,0.04)\,\mathrm{m}\times\{0\}$ \\
+Initial crack (THM4, Sc.~II)\incons & Segment through the centre, $(x,y)=s\,(\cos\ang{45},\sin\ang{45})$, $s\in[-0.01,\,0.01]$\,m, i.e.\ length \SI{0.02}{m} at $\theta=\ang{45}$ (HM3c of~\cite{Mollaali2026}); \cite{Pan2026} states \ang{-45} \\
+Borehole (THM5, Sc.~II) & Centre borehole, radius \SI{0.0025}{m}, no notch (HM3d of~\cite{Mollaali2026}) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The PEE and DSS arc widths (\ang{18}/\ang{4.5}) are estimates from Fig.~4b
+of~\cite{Mollaali2026}; teams should use them until measured values are
+available. The rigid-body points lie in the sheath in Scenario~I and in the rock
+in Scenario~II; their coordinates are the same.
+
+\subsection{Angle convention}
+\label{sec:angles}
+This specification keeps its original angle convention (Fig.~\ref{fig:angles}a):
+$\theta$ is measured counter-clockwise from the $+x$ axis, PEE~1 is centred at
+$\theta=\ang{0}$ and the PEEs are numbered clockwise. The monitoring points
+P0, P90, P180 and P270 of~\cite{Pan2026} (Table~10 there) are given in the same
+convention, e.g.\ P0 $=(+0.065,\,0)$\,m.
+
+The laboratory schematic of the GREAT cell (Fig.~3 of~\cite{Pan2026}) uses a
+different convention (Fig.~\ref{fig:angles}b): the angle $\varphi$ is measured
+clockwise from the top of the drawing, with PEE~2 at $\varphi=\ang{0}$ and
+PEE~1 at $\varphi=\ang{337.5}$. Both conventions describe the same PEE
+arrangement; they differ in the zero direction and the sense of rotation:
+\begin{equation}
+  \varphi = (-\theta - \ang{22.5}) \bmod \ang{360}, \qquad
+  \theta = (-\varphi - \ang{22.5}) \bmod \ang{360}.
+\end{equation}
+Fig.~\ref{fig:angles}b is for explanation only. Profiles plotted against
+$\varphi$ instead of $\theta$ appear mirrored and shifted by \ang{22.5},
+which corresponds to one PEE spacing and to the difference between Load~A and
+Load~E. All inputs and outputs of this specification use $\theta$.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{fig_angle_conventions.pdf}
+\caption{Angle conventions. (a) Convention of this specification (used for
+all inputs and outputs), with the monitoring points P0--P270 on the probe
+circle. (b) Convention of the laboratory schematic in~\cite{Pan2026}, Fig.~3,
+for explanation only. Both panels show the same PEE arrangement; (b) is drawn
+with PEE~2 at the top, as in the laboratory schematic.}
+\label{fig:angles}
+\end{figure}
+
+Note: in Fig.~3 of~\cite{Pan2026} the labels 2A and 3A appear swapped; with
+diametrically opposite pairs, 2A lies at $\varphi=\ang{180}$ and 3A at
+$\varphi=\ang{202.5}$, as drawn in Fig.~\ref{fig:angles}b.
+
+% ---------------------------------------------------------------
+\section{Mesh}
+\label{sec:mesh}
+% ---------------------------------------------------------------
+The mesh is the team's choice, but it must resolve four features: the sheath
+(Scenario~I), the PEE/DSS arc ends, the probe circle and the centre point.
+\begin{itemize}
+  \item PEE/DSS arc ends and the two fixed points must be mesh nodes.
+  \item The probe circle should be embedded as mesh edges, or outputs
+        interpolated onto it at $\le\ang{1}$ spacing.
+  \item Scenario~I: at least two element layers across the \SI{3}{mm} sheath.
+  \item Refinement towards the centre for injection; the reference uses
+        $h=\SI{1.5}{mm}$ at the centre, \SI{6}{mm} at $r=\SI{0.065}{m}$ and
+        \SI{2}{mm} in the sheath.
+  \item Reference mesh: 11\,889 nodes, 5\,804 quadratic triangles; displacement
+        quadratic, pressure and temperature linear.
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section{Material parameters}
+\label{sec:materials}
+% ---------------------------------------------------------------
+All materials are linear elastic and isotropic, and mechanical properties do
+not depend on temperature. Table~\ref{tab:params} lists the rock and sheath
+parameters, Table~\ref{tab:water} the water parameters. Both tables compare
+version~1 of this specification (Scenario~I, rock values from Table~1
+of~\cite{Mollaali2026}, hydraulic and thermal values from the reference TH
+model) with the THM proposal of~\cite{Pan2026} (Tables~2, 4, 6 and~7 there),
+which defines Scenario~II. Where a value differs between the two sources, the
+row gives both and is marked \incons; parameters added from~\cite{Pan2026} are
+marked \added. Values marked ``I'' and ``II'' apply to Scenario~I and~II only.
+
+\begin{table}[htbp]
+\centering
+\caption{Rock and sheath parameters. \incons: inconsistent between
+version~1 and~\cite{Pan2026}; \added: added from~\cite{Pan2026}; (I), (II):
+applies to Scenario~I or~II only.}
+\label{tab:params}
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.3cm} l *{3}{>{\centering\arraybackslash}p{1.55cm}} L@{}}
+\toprule
+Parameter & Unit & Greywacke & Gneiss & Sheath (I) & Remark \\
+\midrule
+\multicolumn{6}{@{}l}{\textit{Mechanical}} \\
+Young's modulus $E$          & GPa           & 26.85 & 83.9 & 0.1 & Consistent; Gneiss alt.\ 57.1 for sensitivity \\
+Poisson's ratio $\nu$        & --            & 0.27  & 0.21 & 0.4 & Consistent; Gneiss alt.\ 0.19 \\
+Solid density $\rho_s$       & kg\,m$^{-3}$  & 2650  & 2750 & 1200 & Consistent \\
+Tensile strength\added       & MPa           & 16.67--17.01 & 16.8 / 6.2 & -- & \cite{Mollaali2026}: Gneiss 16.8 only; source of 6.2 to be clarified \\
+Fracture energy $G_c$\added  & N\,m$^{-1}$   & 30  & 50  & -- & Phase-field models \\
+Normal stiffness $k_n$\added & GPa\,m$^{-1}$ & 100 & 200 & -- & Interface and contact models \\
+Shear stiffness $k_t$\added  & GPa\,m$^{-1}$ & 50  & 100 & -- & Interface and contact models \\
+\midrule
+\multicolumn{6}{@{}l}{\textit{Hydraulic}} \\
+Porosity $\phi$              & --    & 0.005 & 0.001 & as rock & Consistent \\
+Biot coefficient $\alpha_B$  & --    & 0.8   & 0.6   & 0 & Consistent \\
+Permeability $k$ (I)\incons  & m$^2$ & \num{1.409e-14} & \num{1.409e-14} & as rock & From the STIMTEC-calibrated TH model; sheath in~\cite{Mollaali2026}: \num{1e-19} \\
+Permeability $k$ (II)\incons & m$^2$ & \num{2.58e-19} & \num{1e-19} & -- & Gneiss range \num{1e-18} to $<$\num{1e-19}; five orders of magnitude below (I) \\
+\midrule
+\multicolumn{6}{@{}l}{\textit{Thermal}} \\
+Bulk thermal conductivity $\lambda$ (I)\incons & W\,m$^{-1}$\,K$^{-1}$ & 2.8 & 2.8 & 2.8 & (I) prescribes bulk values \\
+Solid thermal conductivity $\lambda_s$ (II)\incons & W\,m$^{-1}$\,K$^{-1}$ & 2.50 & 3.00 & -- & (II) prescribes solid values; bulk from Eq.~\eqref{eq:mixing} \\
+Bulk heat capacity $\rho c$ (I)\incons & J\,m$^{-3}$\,K$^{-1}$ & \num{2.133e6} & \num{2.133e6} & \num{2.133e6} & $2700\times790$; not based on $\rho_s$ \\
+Solid specific heat $c_s$ (II)\incons & J\,kg$^{-1}$\,K$^{-1}$ & 850 & 800 & -- & $\rho_s c_s=\num{2.2525e6}$ / \num{2.2e6} J\,m$^{-3}$\,K$^{-1}$ \\
+Linear thermal expansion $\alpha_T$ (I)\incons & K$^{-1}$ & \num{8e-6} & \num{8e-6} & \num{8e-6} & Gneiss differs between (I) and (II) \\
+Linear thermal expansion $\alpha_T$ (II)\incons & K$^{-1}$ & \num{8e-6} & \num{7e-6} & -- & \\
+Reference temperature $T_\mathrm{ref}$\added & \si{\celsius} & (I) 20, (II) 300 & (I) 20, (II) 300 & 20 & $T_\mathrm{ref}=T_0$: no initial thermal stress \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+In Scenario~II the bulk properties follow from porosity-weighted averaging of
+solid and water values~\cite{Pan2026}:
+\begin{equation}
+  (\rho c)_\mathrm{eff} = \phi\,(\rho c)_f + (1-\phi)\,\rho_s c_s, \qquad
+  \lambda_\mathrm{eff} = \phi\,\lambda_f + (1-\phi)\,\lambda_s .
+  \label{eq:mixing}
+\end{equation}
+In Scenario~I bulk $\lambda$ and $\rho c$ are prescribed; teams back-calculate
+solid values for their own mixing rule. Storage follows in both scenarios from
+$\phi$, $\alpha_B$, the water compressibility and the elasticity.
+
+\subsection{Fracture and numerical parameters}
+\label{sec:fracture}
+For the fractured cases, \cite{Pan2026} takes the initial fracture state, the
+aperture--permeability relation and the phase-field settings from the HM
+benchmarks (``copy HM \ldots, do not refit''). Table~\ref{tab:fracture} lists
+these values from~\cite{Mollaali2026}; they apply to both scenarios.
+
+\begin{table}[htbp]
+\centering
+\caption{Fracture and numerical parameters of the HM benchmarks~\cite{Mollaali2026}
+(Tables~1, 2 and Section~3 there). GW/GN: Greywacke/Gneiss. \incons: inconsistent
+within~\cite{Mollaali2026} or with~\cite{Pan2026}.}
+\label{tab:fracture}
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.6cm} l >{\raggedright\arraybackslash}p{3.4cm} L@{}}
+\toprule
+Parameter & Unit & Value & Remark \\
+\midrule
+\multicolumn{4}{@{}l}{\textit{Initial fracture state}} \\
+Initial fracture width $w_\mathrm{ini}$ & m & \num{1e-6} & Static fractures (THM3a/b) and initial crack (THM4) \\
+Initial pore pressure & MPa & 0.1 & HM benchmarks; Scenario~II uses gauge $p=0$ (Table~\ref{tab:icbc-II}) \\
+\midrule
+\multicolumn{4}{@{}l}{\textit{Fracture flow}} \\
+Fracture permeability (LIE) & m$^2$ & $w^2/12$ & Cubic law; storage $S_\mathrm{fr}=\phi_f/\kappa_f$ ($\phi_f$ not given) \\
+Permeability tensor (VPF) & m$^2$ & $K_m\mathbf I + (1-v)\,\xi\,(w^2/12-K_m)(\mathbf I-\mathbf n_\Gamma\otimes\mathbf n_\Gamma)$ & $\xi\ge1$ (value not given) \\
+Aperture (VPF) & m & $w\approx h_e\,\varepsilon_1$ & $h_e$ element size, $\varepsilon_1$ max.\ principal strain \\
+\midrule
+\multicolumn{4}{@{}l}{\textit{Fracture mechanics}} \\
+Fracture energy $G_c$ & N\,m$^{-1}$ & GW 30, GN 50, sheath 0.1 & Consistent with Table~\ref{tab:params} \\
+Normal stiffness $k_{nn}$ (LIE) & GPa\,m$^{-1}$ & GW 100, GN 200 & \\
+Shear stiffness $k_{tt}$ (LIE)\incons & GPa\,m$^{-1}$ & GW 50, GN 100 & Table~2 of~\cite{Mollaali2026} gives 100/200 for M1/HM1 \\
+Strain energy split (VPF) & -- & Volumetric--deviatoric (M2a, HM3c, HM3d); isotropic (HM2a, HM2b) & AT1/AT2 choice not stated per case \\
+\midrule
+\multicolumn{4}{@{}l}{\textit{Discretization (VPF; LIE uses $h_\mathrm{min}=\SI{2e-3}{m}$)}} \\
+Intact (THM2 / HM1) & m & $h_\mathrm{min}=\num{2e-3}$, $\ell=\num{4e-3}$ & $\ell/h_\mathrm{min}=2$ \\
+Static fractures (THM3a/b / HM2a/b) & m & $h_\mathrm{min}=\num{2.5e-4}$, $\ell=\num{5e-4}$ & \\
+Propagation (THM4, THM5 / HM3c, HM3d) & m & $h_\mathrm{min}=\num{5e-4}$, $\ell=\num{1e-3}$ & \\
+\midrule
+\multicolumn{4}{@{}l}{\textit{Injection in the HM benchmarks (for reference)}} \\
+HM1 (THM2) & m$^3$\,s$^{-1}$ & \num{2.085e-9} at the centre & Outer boundary $p=0$ \\
+HM2a (THM3a) & m$^3$\,s$^{-1}$ & \num{4.167e-7} (25 ml/min) at $(0,0)$ & $p=\SI{3.45}{MPa}$ at both fracture ends $(\pm0.094,0)$ \\
+HM2b (THM3b) & m$^3$\,s$^{-1}$ & \num{4.167e-7} at $(0,0)$ & $p=\SI{3.45}{MPa}$ at $(0.04,0)$ \\
+HM3c (THM4) & m$^3$\,s$^{-1}$ & \num{5e-8}, line element at crack centre & $q=\SI{1e-4}{m^2\,s^{-1}}$ over $h=\SI{5e-4}{m}$ \\
+HM3d (THM5) & m$^3$\,s$^{-1}$ & \num{3.75e-7} around the borehole wall & $q_0=\SI{2.4e-5}{m\,s^{-1}}$ over $2\pi r$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+All HM benchmarks equilibrate under load for \SI{3000}{s} before a \SI{500}{s}
+injection. In Scenario~II the schedule of Section~\ref{sec:schedule-II} applies
+instead, with $Q_\mathrm{2D}=\SI{8.333e-9}{m^3\,s^{-1}}$ per m for all cases.
+
+\begin{table}[htbp]
+\centering
+\caption{Water parameters. \incons: inconsistent between version~1
+and~\cite{Pan2026} or within~\cite{Pan2026}; \added: added
+from~\cite{Pan2026}. The last column gives IAPWS-IF97 values at
+\SI{300}{\celsius} and \SI{8.6}{MPa} absolute pressure for orientation.}
+\label{tab:water}
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.1cm} l >{\raggedright\arraybackslash}p{2.0cm} L c L@{}}
+\toprule
+Parameter & Unit & Scenario I & Scenario II~\cite{Pan2026} & IF97, \SI{300}{\celsius} & Remark \\
+\midrule
+Density $\rho_f$             & kg\,m$^{-3}$ & 1000 at $p_0=\SI{1}{MPa}$ & 1000; variable above \SI{100}{\celsius} & 712 & Consistent below \SI{100}{\celsius} \\
+Compressibility $\beta_p$\incons & Pa$^{-1}$ & \num{4.4e-10} & 0; variable above \SI{100}{\celsius} & \num{3.2e-9} & I includes it (storage); II neglects it up to \SI{100}{\celsius} \\
+Dynamic viscosity $\mu$      & Pa\,s & \num{1e-3} & \num{1e-3}; variable above \SI{100}{\celsius} & \num{8.6e-5} & Consistent below \SI{100}{\celsius} \\
+Specific heat $c_f$          & J\,kg$^{-1}$\,K$^{-1}$ & 4180 & 4180; variable above \SI{100}{\celsius} & 5751 & Consistent below \SI{100}{\celsius} \\
+Thermal conductivity $\lambda_f$\incons & W\,m$^{-1}$\,K$^{-1}$ & 0.6 & 0.6, constant & 0.553 & II keeps 0.6 at \SI{300}{\celsius}, 8\,\% above IF97 \\
+Thermal expansion $\beta_f$\incons & K$^{-1}$ & 0 (neglected) & 0; variable above \SI{100}{\celsius} & \num{3.3e-3} & Large at \SI{300}{\celsius}; drives pressure change on cooling \\
+Injection temperature $T_\mathrm{in}$\incons & \si{\celsius} & 20 & 15, only during inflow & -- & Scenario-specific \\
+Property model\added         & -- & Constant & IAPWS-IF97; $\rho_f$, $c_f$ of $T$ and $p$, $\mu$ of $T$ & -- & \\
+Pressure reference\added     & MPa & $p_0=1$ (absolute) & Gauge $p$; $p_\mathrm{abs}=p+8.6$ at \SI{300}{\celsius} & -- & Keeps water liquid at \SI{300}{\celsius} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ---------------------------------------------------------------
+\section{Mechanical load cases}
+% ---------------------------------------------------------------
+Each load case prescribes a compressive normal stress on the 16 PEE arcs
+(Table~4 of~\cite{Mollaali2026}); PEE $i$ and PEE $i$a carry the same value.
+Loads E, B, F and C are Load~A rotated clockwise by \ang{22.5}, \ang{45},
+\ang{67.5} and \ang{90} (Table~\ref{tab:loads}).
+
+\begin{table}[htbp]
+\centering
+\caption{PEE normal stress per load case (MPa, compression positive).}
+\label{tab:loads}
+\begin{tabular}{@{}lc*{8}{r}@{}}
+\toprule
+Load & Rotation & PEE 1 & PEE 2 & PEE 3 & PEE 4 & PEE 5 & PEE 6 & PEE 7 & PEE 8 \\
+\midrule
+A & \ang{0}    & 10.0 & 6.64 & 4.46 & 1.17 & 1.0  & 3.82 & 7.80 & 9.95 \\
+E & \ang{22.5} & 9.95 & 10.0 & 6.64 & 4.46 & 1.17 & 1.0  & 3.82 & 7.80 \\
+B & \ang{45}   & 7.80 & 9.95 & 10.0 & 6.64 & 4.46 & 1.17 & 1.0  & 3.82 \\
+F & \ang{67.5} & 3.82 & 7.80 & 9.95 & 10.0 & 6.64 & 4.46 & 1.17 & 1.0  \\
+C & \ang{90}   & 1.0  & 3.82 & 7.80 & 9.95 & 10.0 & 6.64 & 4.46 & 1.17 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{itemize}
+  \item \textbf{DSS:} each DSS carries the mean of its two neighbouring PEEs,
+        $\sigma_{\mathrm{DSS},i}=(\sigma_{\mathrm{PEE},i}+\sigma_{\mathrm{PEE},i+1})/2$,
+        with PEE~9 $\equiv$ PEE~1.
+  \item \textbf{Out-of-plane:} plane strain; no axial load is applied in 2D.
+  \item \textbf{Gravity:} none (horizontal section).
+  \item \textbf{Load path:} Scenario~I: applied in the first time step and then
+        held constant. Scenario~II: ramped linearly over 0--\SI{1800}{s}, then
+        held (Section~\ref{sec:schedule-II}).
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section{Loading schedule, initial and boundary conditions}
+\label{sec:schedule}
+% ---------------------------------------------------------------
+This section defines the time schedule, initial and boundary conditions of the
+two thermal scenarios for the intact sample (THM2). The fractured cases of each
+scenario use the same schedule and conditions.
+
+\subsection{Scenario I -- heating}
+\label{sec:schedule-I}
+THM2 loads the intact sample with Load~A, heats it from the outer boundary for
+\SI{4000}{s}, injects cold water at the centre for \SI{50}{s} and then shuts in
+until \SI{5000}{s} (Table~\ref{tab:phases}, Fig.~\ref{fig:bc}). M1 is the same
+model with only the mechanical load, evaluated at the end of the first step.
+
+\begin{table}[htbp]
+\centering
+\caption{Scenario I: THM2 phases and boundary conditions.}
+\label{tab:phases}
+\small
+\begin{tabularx}{\textwidth}{@{}llLLl@{}}
+\toprule
+Phase & Time (s) & Thermal & Hydraulic & Mechanical \\
+\midrule
+0           & $t=0$     & $T=T_0$ & $p=p_0$ & Load A applied \\
+1 Heating   & 0--4000   & Outer boundary: 293 $\rightarrow$ \SI{363}{K} linearly over 0--325\,s, then \SI{363}{K} & $p=p_0$ on outer boundary & Load A held \\
+2 Injection & 4000--4050 & As phase 1; centre point $T=\SI{293}{K}$ & Centre point: $Q=\SI{1}{l/min}$ per m $=\SI{1.667e-5}{m^3\,s^{-1}}$ per m (\SI{16.67}{g\,s^{-1}} per m) & Load A held \\
+3 Shut-in   & 4050--5000 & As phase 1 & No injection & Load A held \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{fig_bc.pdf}
+\caption{Scenario I boundary conditions: Load~A tractions (a) and the thermal
+and hydraulic schedule (b).}
+\label{fig:bc}
+\end{figure}
+
+\textbf{Initial state:} $T_0=\SI{293}{K}$, $p_0=\SI{1}{MPa}$, $\mathbf u=\mathbf 0$
+everywhere. Initial effective stress $\alpha_B p_0$ in the rock (0 in the
+sheath), so that total stress is zero before loading. Report strains relative to
+this state.
+
+\textbf{Boundaries:} the outer boundary is drained ($p=p_0$) and has the
+prescribed temperature in all phases. The reference model treats the sheath
+hydraulically and thermally like the rock.
+
+\textbf{Time stepping (reference):} \SI{5}{s} to \SI{400}{s}, \SI{40}{s} to
+\SI{4000}{s}, \SI{1}{s} during injection, \SI{2}{s} to \SI{4150}{s}, \SI{10}{s}
+to \SI{5000}{s}. Teams may use other steps but must hit all output times exactly.
+
+\subsection{Scenario II -- cold-water injection into hot rock}
+\label{sec:schedule-II}
+Scenario~II follows the schedule of~\cite{Pan2026} (Tables~8 and~9 there): the
+mechanical load is ramped up and held, then water at \SI{15}{\celsius} is
+injected at the centre for \SI{3600}{s} into the rock at \SI{300}{\celsius}
+(Table~\ref{tab:phases-II}, Fig.~\ref{fig:schedule-II}). The simulation time is
+\SI{5600}{s}. There is no rubber sheath; the PEE/DSS loads act on the rock
+surface.
+
+\begin{table}[htbp]
+\centering
+\caption{Scenario II: common \SI{5600}{s} schedule with suggested maximum time
+steps~\cite{Pan2026}.}
+\label{tab:phases-II}
+\small
+\begin{tabularx}{\textwidth}{@{}llLLLl@{}}
+\toprule
+Stage & Time (s) & Mechanical & Injection & Thermal & $\Delta t_\mathrm{max}$ \\
+\midrule
+Load ramp            & 0--1800    & Linear ramp to target PEE/DSS loads & $Q=0$ & Uniform $T=T_0$ & \SI{10}{s} \\
+Hold                 & 1800--2000 & Hold target load & $Q=0$ & Adiabatic equilibration & \SI{10}{s} \\
+Cold-water ramp      & 2000--2120 & Hold & Linear $0\rightarrow Q_0$ & \SI{15}{\celsius} inlet & \SI{1}{s} \\
+Constant injection   & 2120--5600 & Hold & $Q=Q_0$ & \SI{15}{\celsius} inlet & \SI{5}{s}; $\le$\SI{0.1}{s} at fracture events \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{fig_schedule_II.pdf}
+\caption{Scenario II schedule: mechanical load (fraction of the target PEE/DSS
+loads, grey) and injection rate (green).}
+\label{fig:schedule-II}
+\end{figure}
+
+\textbf{Injection rate:} $Q_0=\SI{0.1}{ml/min}=\SI{1.667e-9}{m^3\,s^{-1}}$
+for \SI{3600}{s}, i.e.\ a nominal cumulative volume of \SI{6.0}{ml} (\SI{5.9}{ml}
+with the \SI{120}{s} ramp). The 3D rate is converted to the 2D source strength
+with the specimen thickness $B=\SI{0.2}{m}$:
+\begin{equation}
+  Q_\mathrm{2D} = \frac{Q_0}{B} = \SI{8.333e-9}{m^3\,s^{-1}} \text{ per m}
+  \quad (\text{mass rate } \SI{8.333e-6}{kg\,s^{-1}} \text{ per m}).
+\end{equation}
+$Q_0$ must not be applied directly as a 2D line rate.
+
+\begin{table}[htbp]
+\centering
+\caption{Scenario II: initial and boundary conditions~\cite{Pan2026}.}
+\label{tab:icbc-II}
+\small
+\begin{tabularx}{\textwidth}{@{}lLLL@{}}
+\toprule
+Field / location & Initial condition & Boundary condition & Comment \\
+\midrule
+Temperature, whole domain & Uniform rock and pore water at $T_0=\SI{300}{\celsius}$ & Adiabatic outer boundary, $-\mathbf n\cdot(\lambda_\mathrm{eff}\nabla T)=0$ & $T_\mathrm{ref}=T_0$ \\
+Pressure, whole domain    & $p=0$ (gauge) & $p=0$ on the outer boundary & Report gauge pressure; $p_\mathrm{abs}=p+\SI{8.6}{MPa}$ \\
+Saturation                & $S_w=1$ & Single-phase liquid water & No gas phase \\
+Injection point / boundary & $Q=0$ & $Q(t)$ from Table~\ref{tab:phases-II}; switch at the pressure limit & $T=\SI{15}{\celsius}$ only during inflow ($\mathbf q\cdot\mathbf n<0$) \\
+Mechanical, outer boundary & Zero load, zero displacement & PEE/DSS loads ramped 0--\SI{1800}{s}, then held & Rigid-body points as in Table~\ref{tab:geometry}; no initial stress \\
+Fracture / borehole       & Aperture, permeability and phase-field state as in the HM benchmark & Coupled hydraulic, mechanical and thermal interface & Do not refit \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Isothermal HM control:} each THM run is repeated with uniform
+$T=\SI{15}{\celsius}$ in the whole domain and the injected water, with the same
+mesh, time steps and flow schedule (Section~\ref{sec:scenarios}).
+
+\textbf{Fracture cases:} for THM4 and THM5 the breakdown pressure is an output;
+a pressure safety limit must not replace the fracture-initiation criterion.
+
+\textbf{Inlet temperature (to be clarified):} a fixed temperature of
+\SI{15}{\celsius} at a point source acts as a heat sink that can remove much
+more heat than the injected water carries. In the UFZ reference model at the
+specified rate it removed about 84 times the heat capacity of the injected
+water, so the cooling became conduction-controlled. An energy-consistent inlet
+condition (advective enthalpy flux of the injected water) gives much less
+cooling. Teams must report which inlet condition they use
+(Section~\ref{sec:open}).
+
+% ---------------------------------------------------------------
+\section{Required outputs}
+\label{sec:outputs}
+% ---------------------------------------------------------------
+Both scenarios share the sign convention, units and model description below.
+The output sets differ: Scenario~I uses the CSV files of version~1
+(Section~\ref{sec:outputs-I}); Scenario~II uses the four-point histories,
+snapshots, profiles and inlet data of~\cite{Pan2026}
+(Section~\ref{sec:outputs-II}).
+
+\textbf{Sign convention:} tension positive for stress and strain in the output
+files (the PEE loads are given as compression positive).
+$\varepsilon_\mathrm{vol}=\varepsilon_{xx}+\varepsilon_{yy}$;
+$\varepsilon_{\theta\theta}$ (\texttt{eps\_tt}) is the circumferential strain,
+comparable with the fibre-optic measurement. Angles $\theta$ follow
+Section~\ref{sec:angles}.
+
+\textbf{Model description:} each team also submits code and version, process
+formulation, element type, mesh size and node count, time stepping, inlet
+condition (Scenario~II) and any deviation from this specification.
+
+\subsection{Scenario I}
+\label{sec:outputs-I}
+Each team delivers four CSV files per rock and load case, in SI units,
+comma-separated, with one header line (Table~\ref{tab:outputs}). File names
+follow \texttt{<team>\_<case>\_<rock>\_load<X>\_<output>.csv}, e.g.\
+\texttt{UFZ\_THM2\_greywacke\_loadA\_probe.csv}.
+
+\begin{table}[htbp]
+\centering
+\caption{Scenario I: required output files.}
+\label{tab:outputs}
+\small
+\begin{tabularx}{\textwidth}{@{}lLLL@{}}
+\toprule
+Output & Location & Times & Columns \\
+\midrule
+\texttt{centre}  & Centre point $(0,0)$ & Every time step, at least every 5\,s; every 1\,s in 4000--4060\,s & \texttt{t, T, p} \\
+\texttt{probe}   & Probe circle $r=\SI{0.065}{m}$, 360 points at \ang{1} & Output times & \texttt{t, theta\_deg, eps\_xx, eps\_yy, eps\_xy, eps\_vol, eps\_tt, T, p} \\
+\texttt{profile} & Radial line $\theta=\ang{0}$, $0\le r\le\SI{0.1}{m}$, 101 points & Output times & \texttt{t, r, T, p, sigma\_rr, sigma\_tt} \\
+\texttt{mean}    & Probe circle average & Every time step & \texttt{t, eps\_vol\_mean, T\_mean, p\_mean} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Output times:} 5, 325, 2000, 4000, 4001, 4005, 4010, 4025, 4050, 4060,
+4100, 4200, 4500, 5000\,s. For M1 only the state after loading is required
+($t=\SI{5}{s}$ or the end of the mechanical step).
+
+\subsection{Scenario II}
+\label{sec:outputs-II}
+The outputs of Scenario~II follow Tables~10--12 of~\cite{Pan2026}. They are
+required for every THM run and for its isothermal HM control.
+
+\textbf{Monitoring points.} Temperature, pore pressure and volumetric strain are
+recorded at four points on the probe circle $r_p=\SI{0.065}{m}$
+(Table~\ref{tab:points-II}, Fig.~\ref{fig:angles}a). Temperature and pressure
+histories must use the same probe circle, coordinate system and interpolation
+rule as the volumetric strain.
+
+\begin{table}[htbp]
+\centering
+\caption{Scenario II: monitoring points on the probe circle~\cite{Pan2026}.}
+\label{tab:points-II}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+Point & Direction $\theta$ & Coordinates (m) & Required histories \\
+\midrule
+P0   & \ang{0}   & $(+0.065,\ 0)$ & \multirow{4}{*}{$T(t)$, $p(t)$, $\varepsilon_\mathrm{vol}(t)$} \\
+P90  & \ang{90}  & $(0,\ +0.065)$ & \\
+P180 & \ang{180} & $(-0.065,\ 0)$ & \\
+P270 & \ang{270} & $(0,\ -0.065)$ & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Required results.} Table~\ref{tab:results-II} lists the results: the
+outputs inherited from the HM benchmark, the new thermal outputs and the
+injection data.
+
+\begin{table}[htbp]
+\centering
+\caption{Scenario II: required results~\cite{Pan2026}.}
+\label{tab:results-II}
+\small
+\begin{tabularx}{\textwidth}{@{}lLLl@{}}
+\toprule
+Category & Variable & Location / form & Unit \\
+\midrule
+HM (inherited) & Displacement magnitude $|\mathbf u|$, stress trace $\sigma_\mathrm{trace}$, strain trace $\varepsilon_\mathrm{vol}$ & Full field; probe circle & m, MPa, -- \\
+HM (inherited) & Pore pressure $p$, Darcy flux $\mathbf q$ & Full field; inlet and outer boundary & MPa, m\,s$^{-1}$ \\
+THM (new)      & Temperature $T$ & Full field; P0, P90, P180, P270 & \si{\celsius} \\
+THM (new)      & Pore pressure $p(t)$ & P0, P90, P180, P270 & MPa (gauge) \\
+THM (new)      & Volumetric strain $\varepsilon_\mathrm{vol}(t)$ & P0, P90, P180, P270 & -- or \si{\micro\epsilon} \\
+Inlet          & Inlet pressure $p_\mathrm{in}(t)$, rate $Q(t)$, cumulative volume & Injection point or boundary & MPa, ml/min, ml \\
+Fracture (THM4, THM5) & Breakdown pressure and time & Inlet & MPa, s \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Sampling.} Table~\ref{tab:sampling-II} gives the output times.
+Output is refined automatically around fracture events.
+
+\begin{table}[htbp]
+\centering
+\caption{Scenario II: output sampling~\cite{Pan2026}.}
+\label{tab:sampling-II}
+\small
+\begin{tabularx}{\textwidth}{@{}lL@{}}
+\toprule
+Output & Sampling \\
+\midrule
+Four-point histories & From 2000 to \SI{5600}{s}, every time step (at least every \SI{5}{s}, every \SI{1}{s} during the injection ramp); refined around fracture events. Recommended: also 0--\SI{2000}{s} to document the load ramp \\
+Inlet data           & As four-point histories \\
+Full-field snapshots & $t=2000$, 2060, 3800, \SI{5600}{s}, plus one frame immediately before and after breakdown (THM4, THM5) \\
+Circumferential profiles & $T(\theta)$, $p(\theta)$, $\varepsilon_\mathrm{vol}(\theta)$ on $r=r_p$ for $\theta=\ang{0}$--\ang{360} at \ang{1} spacing, at the snapshot times \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{File format.} \cite{Pan2026} prescribes the content but no file format.
+To keep both scenarios comparable, Scenario~II uses CSV files with one header
+line, named \texttt{<team>\_<case ID>\_<output>.csv} with the case ID of
+Section~\ref{sec:scenarios}, e.g.\ \texttt{UFZ\_THM2-GW-A-T300\_points.csv}
+(Table~\ref{tab:files-II}). Full-field snapshots are delivered as VTU files or
+in another format agreed with the task leads. Temperature in
+\si{\celsius}, pressure in MPa (gauge), strain as a fraction, flow rate in
+ml/min, volume in ml, all other quantities in SI units.
+
+\begin{table}[htbp]
+\centering
+\caption{Scenario II: proposed output files per case (THM run and HM control).}
+\label{tab:files-II}
+\small
+\begin{tabularx}{\textwidth}{@{}lLL@{}}
+\toprule
+File & Content & Columns \\
+\midrule
+\texttt{points}   & Four-point histories & \texttt{t, T\_P0, p\_P0, eps\_vol\_P0, \ldots, T\_P270, p\_P270, eps\_vol\_P270} \\
+\texttt{inlet}    & Injection data & \texttt{t, p\_in, T\_in, Q\_ml\_min, V\_cum\_ml} \\
+\texttt{profiles} & Circumferential profiles at the snapshot times & \texttt{t, theta\_deg, T, p, eps\_vol} \\
+\texttt{field\_t<time>.vtu} & Full-field snapshot & $|\mathbf u|$, $\sigma_\mathrm{trace}$, $\varepsilon_\mathrm{vol}$, $p$, $\mathbf q$, $T$ \\
+\texttt{events}   & THM4, THM5 only & \texttt{t\_breakdown, p\_breakdown} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ---------------------------------------------------------------
+\section{Verification checks}
+\label{sec:verification}
+% ---------------------------------------------------------------
+Each team should pass the checks in Table~\ref{tab:checks} before submitting;
+reference values are from the OGS~6.5.9 model of Scenario~I. Checks and
+reference values for Scenario~II are still to be added (Section~\ref{sec:open}).
+
+\begin{table}[htbp]
+\centering
+\caption{Verification checks and reference values ($\varepsilon_\mathrm{vol}$ in $10^{-2}$\,\%).}
+\label{tab:checks}
+\small
+\begin{tabularx}{\textwidth}{@{}lLLLl@{}}
+\toprule
+Check & Quantity & Reference (OGS) & Independent check & Target \\
+\midrule
+T: ramp only & $T(r,t)$ & -- & Duhamel solution, disc $R=\SI{0.1}{m}$ & $\le$ 0.2\,K \\
+Heating   & Centre $T$ at 4000\,s & 356.7\,K & T model & $\le$ 0.5\,K \\
+Injection & $p-p_0$ at $r=\SI{0.065}{m}$ & 0.0812\,MPa & Thiem: 0.0811\,MPa & $\le$ 1\,\% \\
+Injection & $p-p_0$ at centre node & 1.12\,MPa & Mesh-dependent & Report only \\
+Cooling   & Centre $T$ at 4100 / 5000\,s & 309.5 / 353.6\,K & -- & $\le$ 1\,K \\
+M1        & Mean $\varepsilon_\mathrm{vol}$ on probe circle & $-2.46$ (Greywacke), $-0.95$ (Gneiss) & -- & $\le$ 2\,\% \\
+Heating   & Mean $\varepsilon_\mathrm{vol}$ at 4000\,s & 11.15 (Greywacke), 12.03 (Gneiss) & $2(1+\nu)\alpha_T\Delta T+\varepsilon_\mathrm{mech}$, $\Delta T=\SI{67.0}{K}$ & $\le$ 2\,\% \\
+Injection & Min.\ mean $\varepsilon_\mathrm{vol}$ after injection & 10.73 at 4460\,s (Greywacke), 11.62 at 4450\,s (Gneiss) & -- & Report \\
+Recovery  & Mean $\varepsilon_\mathrm{vol}$ at 5000\,s & 10.94 (Greywacke), 11.82 (Gneiss) & -- & $\le$ 2\,\% \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The strain on the probe circle varies with angle, with maxima near \ang{100}
+and \ang{280} under Load~A. Temperature and pressure are the same for both
+rocks, because permeability and bulk thermal properties are equal.
+
+% ---------------------------------------------------------------
+\section{Modelling choices and open items}
+\label{sec:open}
+% ---------------------------------------------------------------
+\subsection{Modelling choices to be reported}
+Teams must state how they handle the following, since the specification leaves
+them open or the reference model uses a simplification:
+\begin{itemize}
+  \item \textbf{Coupling scheme:} monolithic or staggered; convergence tolerances.
+  \item \textbf{Mass vs.\ volume balance:} with pressure-dependent water
+        density, injection is a mass rate: \SI{16.67}{g\,s^{-1}} per m
+        (Scenario~I), \SI{8.333e-6}{kg\,s^{-1}} per m (Scenario~II).
+  \item \textbf{Point injection:} source at a node vs.\ resolved borehole;
+        pressure at the injection point is mesh-dependent.
+  \item \textbf{Thermal mixing rule} (Scenario~I) used to reach the prescribed
+        bulk $\lambda$ and $\rho c$; Scenario~II prescribes
+        Eq.~\eqref{eq:mixing}.
+  \item \textbf{Inlet temperature condition} (Scenario~II), see
+        \subsection{Open items}
+The following items are open for the task group. They are grouped by topic;
+items marked with a section number are discussed there.
+
+\paragraph{Geometry and cases}
+\begin{itemize}[label=\open]
+  \item Measured PEE and DSS arc widths (currently \ang{18}/\ang{4.5} estimates,
+        Section~\ref{sec:geometry}).
+  \item THM4 (Scenario~II): orientation of the initial crack, \ang{45}
+        in~\cite{Mollaali2026} (HM3c) vs.\ \ang{-45} in~\cite{Pan2026}.
+  \item Case naming: the HM benchmarks were named differently at WS5
+        (HM3a/b) and WS6 (M2a/b, HM2a/b), and~\cite{Pan2026} refers to HM3d
+        as ``HM5''. Use the mapping of Section~\ref{sec:fracture}
+        (THM2--HM1, THM3a--HM2a, THM3b--HM2b, THM4--HM3c, THM5--HM3d)
+        consistently in all team contributions.
+  \item Scenario~I fractured cases (HM3, HM4, THM3, THM4 of
+        Fig.~\ref{fig:concept}): geometry of the fracture network, fracture
+        properties and injection into the fracture.
+\end{itemize}
+
+\paragraph{Material and fracture parameters}
+\begin{itemize}[label=\open]
+  \item Gneiss tensile strength: \cite{Mollaali2026} gives 16.8\,MPa only; the
+        source and meaning of the second value 6.2\,MPa in~\cite{Pan2026} are
+        unclear.
+  \item Gneiss thermal expansion: \num{8e-6} (Scenario~I) vs.\
+        \num{7e-6}\,K$^{-1}$ (Scenario~II).
+  \item Thermal properties of Scenario~I: keep the bulk values
+        ($\lambda=2.8$, $\rho c=2700\times790$) or adopt the solid values and
+        the mixing rule of Scenario~II (Eq.~\eqref{eq:mixing}).
+  \item Thermal properties of Scenario~II are first-round proposals
+        of~\cite{Pan2026}; $\lambda_s$, $c_s$ and $\alpha_T$ are to be replaced
+        by laboratory measurements when available, without changing case IDs
+        or outputs.
+  \item Water conductivity at \SI{300}{\celsius}: 0.6 (\cite{Pan2026}) vs.\
+        0.553\,W\,m$^{-1}$\,K$^{-1}$ (IAPWS-IF97).
+  \item Water compressibility and thermal expansion: \cite{Pan2026} allows
+        $\beta_p=\beta_f=0$ up to \SI{100}{\celsius}, but the CAS team argued at
+        WS6 against setting them to zero; Scenario~I neglects the thermal
+        expansion of water. Agree on one treatment for both scenarios.
+  \item Sheath permeability (Scenario~I): \cite{Mollaali2026} gives
+        \SI{1e-19}{m^2}; the reference model uses the rock permeability to keep
+        a drained outer boundary.
+  \item Fractured cases (Section~\ref{sec:fracture}): the factor $\xi$, the
+        fracture porosity $\phi_f$ and the choice of AT1 or AT2 are not given
+        in~\cite{Mollaali2026}; its Table~2 lists the LIE shear stiffness for
+        intact samples as 100/200 instead of 50/100\,GPa\,m$^{-1}$.
+\end{itemize}
+
+\paragraph{Schedule, initial and boundary conditions}
+\begin{itemize}[label=\open]
+  \item Scenario~II inlet temperature: fixed \SI{15}{\celsius} at the inlet
+        vs.\ advective enthalpy flux (Section~\ref{sec:schedule-II}).
+  \item Scenario~II injection pressure limit: value not given.
+  \item Scenario~II injection ramp: this specification and~\cite{Pan2026} use
+        2000--\SI{2120}{s}; the CAS results shown at WS6 used 2000--\SI{2020}{s}.
+  \item Scenario~II pressure level: the absolute reference \SI{8.6}{MPa} is only
+        just above the saturation pressure of water at \SI{300}{\celsius}
+        (\SI{8.59}{MPa}); any pressure drop below the initial gauge pressure
+        (e.g.\ by cooling contraction of the water at the start of injection)
+        violates the single-phase assumption. The absolute reference pressure
+        of the \SI{15}{\celsius} HM control is not stated.
+  \item Scenario~II fractured cases: hydraulic boundary conditions at the
+        fracture ends ($p=\SI{3.45}{MPa}$ in HM2a/b), and whether the common
+        rate $Q_\mathrm{2D}$ is sufficient to propagate fractures in THM4 and
+        THM5 (HM3c/d used 6 and 45 times higher rates).
+  \item Scenario~I: injection rate per metre in 2D vs.\ the \SI{0.2}{m} sample
+        height (Scenario~II divides by $B=\SI{0.2}{m}$).
+\end{itemize}
+
+\paragraph{Outputs and verification}
+\begin{itemize}[label=\open]
+  \item Agree the output formats and file naming of Section~\ref{sec:outputs},
+        including the Scenario~II files (Table~\ref{tab:files-II}) and the
+        format of full-field snapshots.
+  \item Angle convention of team results: profiles plotted in the laboratory
+        convention appear mirrored and shifted by \ang{22.5}
+        (Section~\ref{sec:angles}); the CAS profiles at WS5 and WS6 showed such
+        a shift. All teams convert to $\theta$ before submission.
+  \item Scenario~II verification checks and reference values
+        (Section~\ref{sec:verification}).
+  \item The OGS web benchmark curve for HM2a (Load~C) is about
+        \SI{26}{\micro\epsilon} less compressive than the reference
+        of~\cite{Mollaali2026}; check before it is used as a reference.
+  \item Comparison data from GREAT cell heating tests and fibre-optic strain.
+\end{itemize}
+
+\paragraph{Document}
+\begin{itemize}[label=\open]
+  \item Governing equations and the list of participating teams and methods
+        (Section~3 and Table~13 of~\cite{Pan2026}) are not yet included.
+  \item Corrections to~\cite{Pan2026}: Eqs.~2, 6, 10 and~11 (density and flux
+        terms); method labels of UFZ and KIGAM in Table~13 (VPF--FEM,
+        GBM--DEM); CAS method named hCA/xFEM in the introduction but
+        CASRock.PF in Table~13; LBNL in the nomenclature but not in
+        Table~13; cross-references to Table~1 and Section~2.x; labels 2A/3A
+        in Fig.~3.
+  \item Bibliographic details of~\cite{Mollaali2026} (volume, article number)
+        to be completed.
+\end{itemize}
+
+ tests and fibre-optic strain.
+\end{itemize}
+
+% ---------------------------------------------------------------
+\nocite{McDermott2018,Kolditz2025,Mollaali2026}
+\bibliographystyle{unsrtnat}
+\bibliography{../references}
+
+\end{document}
